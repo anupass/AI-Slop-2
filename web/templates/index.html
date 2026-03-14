@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Betting Bot Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <span class="logo">⚽</span>
+                <h1>Sports Betting Bot</h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#dashboard" onclick="showDashboard()">Dashboard</a></li>
+                <li><a href="#parleys" onclick="showParleys()">Parleys</a></li>
+                <li><a href="#history" onclick="showHistory()">History</a></li>
+                <li><a href="#performance" onclick="showPerformance()">Model Performance</a></li>
+            </ul>
+        </nav>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <h2>Dashboard</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Parleys</h3>
+                    <p class="stat-value" id="total-parleys">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Won</h3>
+                    <p class="stat-value success" id="won-parleys">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Lost</h3>
+                    <p class="stat-value danger" id="lost-parleys">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Pending</h3>
+                    <p class="stat-value warning" id="pending-parleys">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Wagered</h3>
+                    <p class="stat-value" id="total-wagered">$0.00</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Returned</h3>
+                    <p class="stat-value" id="total-returned">$0.00</p>
+                </div>
+                <div class="stat-card">
+                    <h3>ROI</h3>
+                    <p class="stat-value" id="roi">0%</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Win Rate</h3>
+                    <p class="stat-value" id="win-rate">0%</p>
+                </div>
+            </div>
+
+            <h3>Today's Parleys</h3>
+            <div id="today-parleys" class="parleys-list">
+                <p>Loading today's parleys...</p>
+            </div>
+        </div>
+
+        <!-- Parleys Tab -->
+        <div id="parleys" class="tab-content">
+            <h2>All Parleys</h2>
+            <div id="parleys-list" class="parleys-list">
+                <p>Loading parleys...</p>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="history" class="tab-content">
+            <h2>Betting History</h2>
+            <div id="history-list" class="history-list">
+                <p>Loading history...</p>
+            </div>
+        </div>
+
+        <!-- Performance Tab -->
+        <div id="performance" class="tab-content">
+            <h2>Model Performance</h2>
+            <div id="performance-stats" class="stats-grid">
+                <p>Loading performance data...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://192.168.1.6:5000/api';
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, loading dashboard...');
+            loadDashboard();
+            loadTodayParleys();
+        });
+
+        function showDashboard() {
+            console.log('Showing dashboard');
+            switchTab('dashboard');
+            loadDashboard();
+            loadTodayParleys();
+        }
+
+        function showParleys() {
+            console.log('Showing parleys');
+            switchTab('parleys');
+            loadParleys();
+        }
+
+        function showHistory() {
+            console.log('Showing history');
+            switchTab('history');
+            loadHistory();
+        }
+
+        function showPerformance() {
+            console.log('Showing performance');
+            switchTab('performance');
+            loadPerformance();
+        }
+
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        async function loadDashboard() {
+            try {
+                console.log('Fetching dashboard data from ' + API_BASE + '/dashboard');
+                const response = await fetch(`${API_BASE}/dashboard`);
+                const data = await response.json();
+                
+                console.log('Dashboard data:', data);
+
+                document.getElementById('total-parleys').textContent = data.total_parleys;
+                document.getElementById('won-parleys').textContent = data.won_parleys;
+                document.getElementById('lost-parleys').textContent = data.lost_parleys;
+                document.getElementById('pending-parleys').textContent = data.pending_parleys;
+                document.getElementById('total-wagered').textContent = formatCurrency(data.total_wagered);
+                document.getElementById('total-returned').textContent = formatCurrency(data.total_returned);
+                document.getElementById('roi').textContent = data.roi.toFixed(2) + '%';
+                document.getElementById('win-rate').textContent = data.win_rate.toFixed(2) + '%';
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        async function loadTodayParleys() {
+            try {
+                console.log('Fetching today parleys...');
+                const response = await fetch(`${API_BASE}/today-parleys`);
+                const data = await response.json();
+                
+                console.log('Today parleys:', data);
+
+                const container = document.getElementById('today-parleys');
+                container.innerHTML = '';
+
+                if (data.count === 0) {
+                    container.innerHTML = '<p>No parleys created today</p>';
+                    return;
+                }
+
+                data.parleys.forEach(parley => {
+                    const parleyEl = document.createElement('div');
+                    parleyEl.className = 'parley-card';
+                    parleyEl.onclick = () => window.location.href = `/parley-detail?id=${parley.id}`;
+                    parleyEl.style.cursor = 'pointer';
+                    parleyEl.innerHTML = `
+                        <h4>Parley #${parley.id}</h4>
+                        <p>Status: <span class="badge ${parley.status}">${parley.status.toUpperCase()}</span></p>
+                        <p>Bet: ${formatCurrency(parley.bet_amount)}</p>
+                        <p>Potential Return: ${formatCurrency(parley.potential_return)}</p>
+                    `;
+                    container.appendChild(parleyEl);
+                });
+            } catch (error) {
+                console.error('Error loading today parleys:', error);
+            }
+        }
+
+        async function loadParleys() {
+            try {
+                console.log('Fetching all parleys...');
+                const response = await fetch(`${API_BASE}/parleys`);
+                const parleys = await response.json();
+                
+                console.log('All parleys:', parleys);
+
+                const container = document.getElementById('parleys-list');
+                container.innerHTML = '';
+
+                if (parleys.length === 0) {
+                    container.innerHTML = '<p>No parleys found</p>';
+                    return;
+                }
+
+                parleys.forEach(parley => {
+                    const parleyEl = document.createElement('div');
+                    parleyEl.className = 'parley-card';
+                    parleyEl.onclick = () => window.location.href = `/parley-detail?id=${parley.id}`;
+                    parleyEl.style.cursor = 'pointer';
+                    parleyEl.innerHTML = `
+                        <h4>Parley #${parley.id}</h4>
+                        <p>Date: ${parley.date}</p>
+                        <p>Status: <span class="badge ${parley.status}">${parley.status.toUpperCase()}</span></p>
+                        <p>Odds: ${parley.total_odds.toFixed(2)}</p>
+                        <p>Bet: ${formatCurrency(parley.bet_amount)}</p>
+                        <p>Potential: ${formatCurrency(parley.potential_return)}</p>
+                    `;
+                    container.appendChild(parleyEl);
+                });
+            } catch (error) {
+                console.error('Error loading parleys:', error);
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch(`${API_BASE}/history`);
+                const history = await response.json();
+                
+                const container = document.getElementById('history-list');
+                container.innerHTML = '';
+
+                if (history.length === 0) {
+                    container.innerHTML = '<p>No history found</p>';
+                    return;
+                }
+
+                const table = document.createElement('table');
+                table.className = 'history-table';
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Wagered</th>
+                            <th>Potential</th>
+                            <th>Actual</th>
+                            <th>Profit/Loss</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+
+                const tbody = table.querySelector('tbody');
+                history.forEach(h => {
+                    const row = document.createElement('tr');
+                    const profit = h.profit ? h.profit : 'N/A';
+                    const profitClass = h.profit > 0 ? 'profit' : h.profit < 0 ? 'loss' : '';
+                    row.innerHTML = `
+                        <td>${h.date}</td>
+                        <td><span class="badge ${h.status}">${h.status.toUpperCase()}</span></td>
+                        <td>${formatCurrency(h.bet_amount)}</td>
+                        <td>${formatCurrency(h.potential_return)}</td>
+                        <td>${h.actual_return ? formatCurrency(h.actual_return) : 'N/A'}</td>
+                        <td class="${profitClass}">${typeof profit === 'number' ? formatCurrency(profit) : profit}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                container.appendChild(table);
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        async function loadPerformance() {
+            try {
+                const response = await fetch(`${API_BASE}/model-performance`);
+                const perf = await response.json();
+                
+                const container = document.getElementById('performance-stats');
+                container.innerHTML = `
+                    <div class="stat-card">
+                        <h3>Accuracy</h3>
+                        <p class="stat-value">${(perf.accuracy * 100).toFixed(2)}%</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Precision</h3>
+                        <p class="stat-value">${(perf.precision * 100).toFixed(2)}%</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Recall</h3>
+                        <p class="stat-value">${(perf.recall * 100).toFixed(2)}%</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>F1 Score</h3>
+                        <p class="stat-value">${(perf.f1_score * 100).toFixed(2)}%</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Training Data</h3>
+                        <p class="stat-value">${perf.training_data_size}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Last Trained</h3>
+                        <p class="stat-value">${perf.trained_at ? new Date(perf.trained_at).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading performance:', error);
+            }
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        }
+    </script>
+</body>
+</html>

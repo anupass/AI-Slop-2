@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parley Details - Sports Betting Bot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/parley_detail.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav class="navbar">
+            <h1>⚽ Sports Betting Bot</h1>
+            <ul class="nav-links">
+                <li><a href="/" onclick="window.history.back()">Back to Dashboard</a></li>
+            </ul>
+        </nav>
+
+        <div class="parley-detail-container">
+            <h2 id="parley-title">Parley Details</h2>
+            
+            <div class="parley-summary">
+                <div class="summary-card">
+                    <h3>Parley ID</h3>
+                    <p id="parley-id">-</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Status</h3>
+                    <p id="parley-status" class="status-badge">-</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Date Created</h3>
+                    <p id="parley-date">-</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Total Odds</h3>
+                    <p id="parley-total-odds">-</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Bet Amount</h3>
+                    <p id="parley-bet-amount">-</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Potential Return</h3>
+                    <p id="parley-potential-return">-</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Actual Return</h3>
+                    <p id="parley-actual-return">-</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Profit/Loss</h3>
+                    <p id="parley-profit" class="profit-badge">-</p>
+                </div>
+            </div>
+
+            <h3 class="legs-title">Parley Legs</h3>
+            
+            <div class="legs-container" id="legs-container">
+                <p class="loading">Loading parley legs...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get parley ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const parleyId = urlParams.get('id');
+
+        if (!parleyId) {
+            document.body.innerHTML = '<h2>Error: No parley ID provided</h2>';
+        } else {
+            loadParleyDetail(parleyId);
+        }
+
+        async function loadParleyDetail(id) {
+            try {
+                const response = await fetch(`/api/parley/${id}`);
+                const parley = await response.json();
+
+                if (response.ok) {
+                    displayParleyDetail(parley);
+                } else {
+                    document.getElementById('legs-container').innerHTML = 
+                        `<p class="error">Error: ${parley.error}</p>`;
+                }
+            } catch (error) {
+                console.error('Error loading parley:', error);
+                document.getElementById('legs-container').innerHTML = 
+                    `<p class="error">Error loading parley details</p>`;
+            }
+        }
+
+        function displayParleyDetail(parley) {
+            // Update summary
+            document.getElementById('parley-title').textContent = `Parley #${parley.id}`;
+            document.getElementById('parley-id').textContent = `#${parley.id}`;
+            
+            const statusBadge = document.getElementById('parley-status');
+            statusBadge.textContent = parley.status.toUpperCase();
+            statusBadge.className = `status-badge ${parley.status.toLowerCase()}`;
+            
+            document.getElementById('parley-date').textContent = new Date(parley.created_at).toLocaleString();
+            document.getElementById('parley-total-odds').textContent = parley.total_odds.toFixed(2);
+            document.getElementById('parley-bet-amount').textContent = formatCurrency(parley.bet_amount);
+            document.getElementById('parley-potential-return').textContent = formatCurrency(parley.potential_return);
+            
+            if (parley.actual_return) {
+                document.getElementById('parley-actual-return').textContent = formatCurrency(parley.actual_return);
+                const profit = parley.actual_return - parley.bet_amount;
+                const profitBadge = document.getElementById('parley-profit');
+                profitBadge.textContent = formatCurrency(profit);
+                profitBadge.className = `profit-badge ${profit >= 0 ? 'profit' : 'loss'}`;
+            } else {
+                document.getElementById('parley-actual-return').textContent = 'Pending';
+                document.getElementById('parley-profit').textContent = 'Pending';
+            }
+
+            // Display legs
+            const legsContainer = document.getElementById('legs-container');
+            legsContainer.innerHTML = '';
+
+            if (parley.legs && parley.legs.length > 0) {
+                parley.legs.forEach((leg, index) => {
+                    const legElement = createLegElement(leg, index + 1);
+                    legsContainer.appendChild(legElement);
+                });
+            } else {
+                legsContainer.innerHTML = '<p>No legs found for this parley</p>';
+            }
+        }
+
+        function createLegElement(leg, legNumber) {
+            const div = document.createElement('div');
+            div.className = 'leg-card';
+            
+            const matchTitle = `${leg.home_team} vs ${leg.away_team}`;
+            const predictionText = getPredictionText(leg.bet_type, leg.prediction);
+            const statusClass = leg.status.toLowerCase();
+            
+            div.innerHTML = `
+                <div class="leg-header">
+                    <div class="leg-number">Leg ${legNumber}</div>
+                    <div class="leg-match">${matchTitle}</div>
+                    <div class="leg-status ${statusClass}">${leg.status.toUpperCase()}</div>
+                </div>
+                
+                <div class="leg-details">
+                    <div class="detail-row">
+                        <span class="label">Bet Type:</span>
+                        <span class="value">${formatBetType(leg.bet_type)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Prediction:</span>
+                        <span class="value">${predictionText}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Odds:</span>
+                        <span class="value">${leg.odds.toFixed(2)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Confidence:</span>
+                        <span class="value confidence">${(leg.confidence * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Created:</span>
+                        <span class="value">${new Date(leg.created_at).toLocaleString()}</span>
+                    </div>
+                    ${leg.result ? `
+                    <div class="detail-row">
+                        <span class="label">Result:</span>
+                        <span class="value">${leg.result}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            return div;
+        }
+
+        function getPredictionText(betType, prediction) {
+            const predictionMap = {
+                'h2h_home': { 'class_0': 'Home Loss', 'class_1': 'Home Win' },
+                'h2h_away': { 'class_0': 'Away Loss', 'class_1': 'Away Win' },
+                'h2h_draw': { 'class_0': 'No Draw', 'class_1': 'Draw' },
+                'over_2_5': { 'class_0': 'Under 2.5', 'class_1': 'Over 2.5' },
+                'under_2_5': { 'class_0': 'Over 2.5', 'class_1': 'Under 2.5' },
+                'btts_yes': { 'class_0': 'No BTTS', 'class_1': 'Both Teams to Score' },
+                'btts_no': { 'class_0': 'Both Teams to Score', 'class_1': 'No BTTS' }
+            };
+            
+            if (predictionMap[betType]) {
+                return predictionMap[betType][prediction] || prediction;
+            }
+            return prediction;
+        }
+
+        function formatBetType(betType) {
+            const betTypeMap = {
+                'h2h_home': 'Home Win',
+                'h2h_away': 'Away Win',
+                'h2h_draw': 'Draw',
+                'over_2_5': 'Over/Under 2.5',
+                'under_2_5': 'Over/Under 2.5',
+                'btts_yes': 'Both Teams to Score',
+                'btts_no': 'Both Teams to Score'
+            };
+            return betTypeMap[betType] || betType;
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        }
+    </script>
+</body>
+</html>
