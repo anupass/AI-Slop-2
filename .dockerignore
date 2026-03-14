@@ -1,0 +1,5 @@
+# Exclude unnecessary files from Docker image
+node_modules/
+*.log
+*.tmp
+.DS_Store
