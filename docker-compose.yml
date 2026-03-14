@@ -1,0 +1,1 @@
+version: '3.8'\nservices:\n  sports-betting-bot:\n    image: sports-betting-bot\n    ports:\n      - '5000:5000'\n    environment:\n      - ODDS_API_KEY=${ODDS_API_KEY}\n      - FOOTBALL_API_KEY=${FOOTBALL_API_KEY}\n    volumes:\n      - ./data:/app/data\n    restart: always
